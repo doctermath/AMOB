@@ -45,7 +45,7 @@ MESSAGE "BEGIN Get Demand Call Program xx".
 
 // TEST VARIABLE - Limit Data Retriver Per Table - ZERO for unlimited
 ASSIGN
-    iLimit = 10.
+    iLimit = 0.
 
 /* Assign Initial Value */
 ASSIGN
