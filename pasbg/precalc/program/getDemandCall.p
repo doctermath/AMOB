@@ -23,7 +23,7 @@ oJsonIn:Add('branch', poRequest:URI:GetQueryValue('branch')).
 oJsonIn:Add('agency', poRequest:URI:GetQueryValue('agency')).
 oJsonIn:Add('partno', porequest:URI:GetQueryValue('partno')).
 
-RUN Logic/gdmdcall.p(INPUT oJsonIn, OUTPUT oJsonOut).
+RUN pasbg/precalc/logic/gdmdcall.p (INPUT oJsonIn, OUTPUT oJsonOut).
 
 oJson:Add('start-date', oJsonIn:GetDate("start-date")).
 oJson:Add('end-date', oJsonIn:GetDate("end-date")).
