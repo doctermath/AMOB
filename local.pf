@@ -1,0 +1,20 @@
+# Startup Parameter Configuration for Localhost Development using H-1 Databases
+
+# -db alt78s -H 172.16.1.35 -S 10115 -N tcp
+-db xtloth -H 172.16.1.35 -S 10121 -ld xtools -N tcp
+-db alt78 -H 172.16.1.35 -S 10111 -N tcp -U admin -P aispwd
+-db alt78tr -H 172.16.1.35 -S 10112 -N tcp -U admin -P aispwd
+-db alt78h -H 172.16.1.35 -S 10113 -N tcp -U admin -P aispwd
+-db alt78g -H 172.16.1.35 -S 10114 -N tcp -U admin -P aispwd
+-db alt78his -H 172.16.1.35 -S 10116 -N tcp -U admin -P aispwd
+-db alt78pu -H 172.16.1.35 -S 10120 -N tcp -U admin -P aispwd
+-db alt78pn -H 172.16.1.35 -S 10119 -N tcp -U admin -P aispwd
+-db alt78tmp -H 172.16.1.35 -S 10117 -N tcp
+
+-db local1 -H 172.16.5.6 -S 5014 -N TCP -U rutin -P rutin
+
+-h 20
+-l 1000000
+
+-d dmy
+-lkwtmo 60
