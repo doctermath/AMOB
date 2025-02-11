@@ -7,3 +7,5 @@ def generate_alias(name: str) -> str:
 print(generate_alias("Jonathan Christopher Smith"))  # Output: JCS
 print(generate_alias("Short Name"))
 # cak
+
+test test 
