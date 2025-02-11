@@ -3,6 +3,9 @@ def generate_alias(name: str) -> str:
         return name
     return "".join(word[0].upper() for word in name.split())
 
+# test git
+print('halo ini anton :)')
+
 # Example usage okey
 print(generate_alias("Jonathan Christopher Smith"))  # Output: JCS
 print(generate_alias("Short Name"))
