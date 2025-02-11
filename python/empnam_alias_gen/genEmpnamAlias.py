@@ -8,4 +8,4 @@ print(generate_alias("Jonathan Christopher Smith"))  # Output: JCS
 print(generate_alias("Short Name"))
 # cak
 
-test test 
+test test halo ini anton
