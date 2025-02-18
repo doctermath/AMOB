@@ -57,16 +57,11 @@ ELSE DO:
             WHEN '/run/~{script~}' THEN
             RUN VALUE('resource/' + poRequest:GetPathParameter("script") + '.p') (INPUT poRequest, INPUT oJson).
         
-            WHEN '/pas128int' THEN 
-                oJson:Add('hello', 'cursor').                    
-    
-            /* PAS128EXT */
-            WHEN '/pas128ext' THEN 
-                oJson:Add('hello', 'slack').  
-                
-            /* PAS128PRO */          
-            WHEN '/pas128pro' THEN 
-                oJson:Add('hello', 'everyday').
+            WHEN '/gdmdcall' THEN 
+            RUN pasbg/precalc/program/getDemandCall.p(poRequest, oJson).
+            
+            WHEN '/getengpop' THEN 
+            RUN resource/engines/getengpop.p (poRequest, oJson). 
             
             OTHERWISE DO:
                 oResponse:StatusCode = 404.

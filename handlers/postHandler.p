@@ -1,0 +1,83 @@
+USING Progress.Json.ObjectModel.JsonObject.
+
+DEFINE INPUT  PARAMETER poRequest AS OpenEdge.Web.IWebRequest NO-UNDO.
+
+/* Variable and Object Declaration 
+======================================================== */ 
+DEFINE VARIABLE oResponse AS OpenEdge.Web.WebResponse NO-UNDO.
+DEFINE VARIABLE mHandler  AS Core.Master.Handler      NO-UNDO.
+DEFINE VARIABLE oAuth     AS Core.Security.Auth       NO-UNDO.
+DEFINE VARIABLE oJson     AS JsonObject               NO-UNDO.
+DEFINE VARIABLE cUri      AS CHARACTER                NO-UNDO.
+    
+ASSIGN 
+    oResponse            = NEW OpenEdge.Web.WebResponse()
+    mHandler             = NEW Core.Master.Handler()
+    oJson                = NEW JsonObject()
+    oAuth                = NEW Core.Security.Auth(INPUT poRequest, INPUT ojson, oResponse)
+
+    oResponse:StatusCode = 200
+    .
+
+/* URL Routing 
+======================================================== */  
+cUri = RIGHT-TRIM(poRequest:UriTemplate, '/':u).
+
+IF cUri = '/test/~{param~}' THEN 
+DO:
+    RUN VALUE('test/' + poRequest:GetPathParameter("param") + '.p') (INPUT poRequest, INPUT oJson).
+END.
+
+/* Authentication (PAS128AUTH) */
+ELSE IF cUri = '/auth/~{param~}' THEN 
+    DO:
+        CASE poRequest:GetPathParameter("param"):
+            WHEN 'login' THEN 
+                oAuth:Login().
+            WHEN 'register' THEN 
+                oAuth:Register().
+            WHEN 'logout' THEN 
+                IF oAuth:ValidateToken() THEN 
+                    oAuth:Logout().
+            OTHERWISE 
+            DO:
+                oResponse:StatusCode = 400.
+                oJson:Add('success', FALSE).
+                oJson:Add('message', 'Invalid Authentication Parameter').
+            END.
+        END CASE.
+    END.
+
+    /* Resources */
+    ELSE 
+    DO:
+        /* Check Validation */
+        IF oAuth:ValidateToken() THEN 
+        DO:
+            CASE cUri:
+                WHEN '/postdmdcall' THEN 
+                RUN pasbg/precalc/program/postDemandCall.p (poRequest, oJson).
+            
+                OTHERWISE 
+                DO:
+                    oResponse:StatusCode = 404.
+                    oJson:Add('success', FALSE).
+                    oJson:Add('message', 'Resource Not Found').
+                END.
+    
+            END CASE.
+        END.
+    
+        /* If Unvalidated */
+        ELSE 
+        DO:
+            oResponse:StatusCode = 401. 
+            oJson:Add('success', FALSE).
+            oJson:Add('message', 'Invalid Credential').   
+        END.    
+    END.
+
+/* Response Content 
+======================================================== */   
+mHandler:jsonResponse(INPUT oJson, INPUT oResponse).   
+
