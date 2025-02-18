@@ -37,6 +37,11 @@ ELSE IF cUri = '/auth/~{param~}' THEN DO:
         WHEN 'logout' THEN 
             IF oAuth:ValidateToken() THEN 
                 oAuth:Logout().
+        OTHERWISE DO:
+            oResponse:StatusCode = 400.
+            oJson:Add('success', FALSE).
+            oJson:Add('message', 'Invalid Authentication Parameter').
+        END.
     END CASE.
 END.
 
@@ -62,6 +67,12 @@ ELSE DO:
             /* PAS128PRO */          
             WHEN '/pas128pro' THEN 
                 oJson:Add('hello', 'everyday').
+            
+            OTHERWISE DO:
+                oResponse:StatusCode = 404.
+                oJson:Add('success', FALSE).
+                oJson:Add('message', 'Resource Not Found').
+            END.
     
         END CASE.
     END.
