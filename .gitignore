@@ -1,4 +1,4 @@
-# Ignore .R progress compiled files
+# Ignore .r progress compiled files
 *.r
 
 # Ignore log files

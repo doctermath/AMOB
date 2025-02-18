@@ -1,86 +1,30 @@
+/* GET Handler
+ * For Routing HTTP GET Method to corresponding procedure 
+ * ======================================================================= */
+ 
 USING Progress.Json.ObjectModel.JsonObject.
+USING OpenEdge.Web.IWebRequest.
 
-DEFINE INPUT  PARAMETER poRequest AS OpenEdge.Web.IWebRequest NO-UNDO.
+DEFINE INPUT  PARAMETER aa  AS CHARACTER   NO-UNDO.
+DEFINE INPUT  PARAMETER bb  AS CHARACTER   NO-UNDO.
+DEFINE INPUT  PARAMETER poRequest   AS IWebRequest NO-UNDO.
+DEFINE INPUT  PARAMETER oJson       AS JsonObject  NO-UNDO.
+DEFINE OUTPUT PARAMETER lNoResource AS LOGICAL   NO-UNDO.
 
-/* Variable and Object Declaration 
-======================================================== */ 
-DEFINE VARIABLE oResponse AS OpenEdge.Web.WebResponse NO-UNDO.
-DEFINE VARIABLE mHandler  AS Core.Master.Handler      NO-UNDO.
-DEFINE VARIABLE oAuth     AS Core.Security.Auth       NO-UNDO.
-DEFINE VARIABLE oJson     AS JsonObject               NO-UNDO.
-DEFINE VARIABLE cUri      AS CHARACTER                NO-UNDO.
-    
-ASSIGN 
-    oResponse            = NEW OpenEdge.Web.WebResponse()
-    mHandler             = NEW Core.Master.Handler()
-    oJson                = NEW JsonObject()
-    oAuth                = NEW Core.Security.Auth(INPUT poRequest, INPUT ojson, oResponse)
-
-    oResponse:StatusCode = 200
-    .
-
-/* URL Routing 
-======================================================== */  
-cUri = RIGHT-TRIM(poRequest:UriTemplate, '/':u).
-
-IF cUri = '/test/~{param~}' THEN DO:
-    RUN VALUE('test/' + poRequest:GetPathParameter("param") + '.p') (INPUT poRequest, INPUT oJson).
-END.
-
-/* Authentication (PAS128AUTH) */
-ELSE IF cUri = '/auth/~{param~}' THEN DO:
-    CASE poRequest:GetPathParameter("param"):
-        WHEN 'login' THEN 
-            oAuth:Login().
-        WHEN 'register' THEN 
-            oAuth:Register().
-        WHEN 'logout' THEN 
-            IF oAuth:ValidateToken() THEN 
-                oAuth:Logout().
-        OTHERWISE DO:
-            oResponse:StatusCode = 400.
-            oJson:Add('success', FALSE).
-            oJson:Add('message', 'Invalid Authentication Parameter').
-        END.
+IF aa = 'GUEST' THEN DO:
+    CASE bb:
+        WHEN 'xxx' THEN 
+            RUN resource/getEmployeeData.p (INPUT poRequest, INPUT oJson).
+        
+        OTHERWISE ASSIGN lNoResource = TRUE.  
     END CASE.
 END.
 
-/* Resources */
-ELSE DO:
-    /* Check Validation */
-    IF oAuth:ValidateToken() THEN DO:
-        CASE cUri:
-            /* PAS128INT */
-            WHEN '/get-employee-data' THEN
-            RUN resource/getEmployeeData.p (INPUT poRequest, INPUT oJson).
-            
-            WHEN '/run/~{script~}' THEN
-            RUN VALUE('resource/' + poRequest:GetPathParameter("script") + '.p') (INPUT poRequest, INPUT oJson).
+ELSE IF aa = 'USER' THEN DO:
+    CASE bb:
+        WHEN 'xxx' THEN 
+        RUN resource/getEmployeeData.p (INPUT poRequest, INPUT oJson).
         
-            WHEN '/gdmdcall' THEN 
-            RUN pasbg/precalc/program/getDemandCall.p(poRequest, oJson).
-            
-            WHEN '/getengpop' THEN 
-            RUN resource/engines/getengpop.p (poRequest, oJson). 
-            
-            OTHERWISE DO:
-                oResponse:StatusCode = 404.
-                oJson:Add('success', FALSE).
-                oJson:Add('message', 'Resource Not Found').
-            END.
-    
-        END CASE.
-    END.
-    
-    /* If Unvalidated */
-    ELSE DO:
-        oResponse:StatusCode = 401. 
-        oJson:Add('success', FALSE).
-        oJson:Add('message', 'Invalid Credential').   
-    END.    
+        OTHERWISE ASSIGN lNoResource = TRUE.  
+    END CASE.
 END.
-
-/* Response Content 
-======================================================== */   
-mHandler:jsonResponse(INPUT oJson, INPUT oResponse).   
-
