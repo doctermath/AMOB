@@ -1,3 +1,6 @@
+# Ignore .R progress compiled files
+*.r
+
 # Ignore log files
 *.log
 
