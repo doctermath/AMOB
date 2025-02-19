@@ -49,7 +49,8 @@ CLASS Core.Security.Auth:
     END METHOD.
 
 
-    /* Login With Basic Auth ================= */
+    /* BASIC AUTH LOGIN 
+    ==================================================================================== */
     METHOD PUBLIC VOID Login():
         /* Just for logging on server */
         MESSAGE "BEGIN LOGIN".
@@ -107,7 +108,8 @@ CLASS Core.Security.Auth:
     END METHOD. 
     
     
-    /* Register an account to database ================= */
+    /* BASIC AUTH REGISTER 
+    ==================================================================================== */
     METHOD PUBLIC VOID Register():
         DEFINE VARIABLE iLastUserId AS INTEGER   NO-UNDO.
         DEFINE VARIABLE cRole       AS CHARACTER NO-UNDO.
@@ -158,8 +160,9 @@ CLASS Core.Security.Auth:
         MESSAGE "END REGISTER".
     END METHOD.
     
-    
-    /* Delete Database Token and Expiry_Epoch of a user ================= */
+    /* BEARER AUTH LOGOUT
+    ==================================================================================== */
+    /* Delete Database Token and Expiry_Epoch of a user */
     METHOD PUBLIC VOID Logout():
         MESSAGE "BEGIN LOGOUT".
         setBearerCredential().
@@ -191,7 +194,8 @@ CLASS Core.Security.Auth:
         MESSAGE "END LOGOUT".
     END METHOD.
     
-    
+    /* VALIDATE BEARER TOKEN 
+    ==================================================================================== */
     /* Validate token used by user to retrive resource ================= */
     METHOD PUBLIC LOGICAL ValidateToken():
         MESSAGE "BEGIN VALIDATE TOKEN".
@@ -218,9 +222,11 @@ CLASS Core.Security.Auth:
         MESSAGE "END VALIDATE TOKEN".
     END METHOD. 
     
-    /* Validate API KEY ================= */
+    /* VALIDATE API KEY 
+    ==================================================================================== */
+    /* Validate API KEY ================= */ /* TODO : API KEY FOR USER IS SAVED ON DATABSE NOT IN DOT ENV */
     METHOD PRIVATE LOGICAL ValidateApiKey():
-        DEFINE VARIABLE cApiKey AS CHARACTER NO-UNDO.
+        /*DEFINE VARIABLE cApiKey AS CHARACTER NO-UNDO.
         
         MESSAGE "BEGIN VALIDATE API KEY".
         
@@ -237,18 +243,20 @@ CLASS Core.Security.Auth:
             RETURN FALSE.
         END.
         
-        MESSAGE "END VALIDATE API KEY". 
+        MESSAGE "END VALIDATE API KEY". */
     END METHOD.
     
     
-    /* Get Header value sent by client ================= */
+    /* GET HEADER VALUE 
+    ==================================================================================== */
     METHOD PRIVATE CHARACTER GetHeaderValue(INPUT cHeader AS CHARACTER):
         RETURN 
             ENTRY(2, STRING(poRequest:GetHeader(cHeader)), " ").
     END METHOD. 
     
     
-    /* retrive Credential from Basic Auth Header ================= */
+    /* SET BASIC CREDENTIAL 
+    ==================================================================================== */
     METHOD PRIVATE VOID SetBasicCredential():
         ASSIGN
             cBasicCredential = GetHeaderValue('Progress-Basic-Auth')
@@ -260,6 +268,8 @@ CLASS Core.Security.Auth:
             
     END METHOD.
 
+    /* SET BEARER CREDENTIAL 
+    ==================================================================================== */
     /* retrieve Credential from Bearer Auth Header =================*/
     METHOD PUBLIC VOID SetBearerCredential():
         ASSIGN 
@@ -271,43 +281,50 @@ CLASS Core.Security.Auth:
         
     END METHOD.
     
-    
+    /* GETBEARERUSERNAME 
+    ==================================================================================== */
     METHOD PUBLIC CHARACTER GetBearerUsername():
         RETURN cBearerUsername.            
     END METHOD. 
     
-    
+    /* GETBEAREREXPIRE 
+    ==================================================================================== */
     METHOD PUBLIC INTEGER GetBearerExpire():
         RETURN iBearerExpire.            
     END METHOD. 
     
-     
-    /* For hashing + salting retrieved password before stored =================
+    
+    /* REHASH 
+    ==================================================================================== */ 
+    /* For hashing + salting retrieved password before stored 
      * to database, salt key is exclusive in .env file on every server */
     METHOD PRIVATE CHARACTER Rehash(INPUT ipKey AS CHARACTER):
+        DEFINE VARIABLE hash_key AS CHARACTER NO-UNDO.
+        
+        ASSIGN hash_key = oEnv:GetValue("PHANTOM_KEY").
+        
+        IF hash_key = ? THEN DO:
+            MESSAGE 'FATAL - HASH KEY WITH NULL VALUE IS PROHIBITED'.
+            STOP.
+        END.
+        
         RETURN 
             STRING(
-            HEX-ENCODE(
-            MESSAGE-DIGEST("HMAC-SHA-256", ipKey, oEnv:GetValue("PHANTOM_KEY"))
+                HEX-ENCODE(
+                    MESSAGE-DIGEST("HMAC-SHA-256", ipKey, hash_key)
             )).
              
     END METHOD.  
      
-    /* generate token on successful login ================= */
-    METHOD PUBLIC CHARACTER GenToken():
-        DEFINE VARIABLE token AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE ix   AS INTEGER   NO-UNDO.
-
-        /* Generate a 32-character long token */
-        DO ix = 1 TO 32:
-            token = token + CHR(RANDOM(97, 122)). /* Append random lowercase letter */
-        END.
-
-        RETURN token.     
+    /* GENERATE TOKEN FOR SUCCEFFUL LOGIN
+    ==================================================================================== */
+    METHOD PUBLIC LONGCHAR GenToken():
+        SECURITY-POLICY:SYMMETRIC-ENCRYPTION-ALGORITHM = "AES_CBC_192".
+        RETURN HEX-ENCODE(GENERATE-RANDOM-KEY).    
     END METHOD. 
     
-    
-    /* get current time in linux epoch format ================= */
+    /* GENERATE CURRENT LINUX EPOCH TIME 
+    ==================================================================================== */
     METHOD PUBLIC INT64 GetCurrentEpoch():
         DEFINE VARIABLE datetime AS DATETIME NO-UNDO.
         DEFINE VARIABLE epoch    AS INT64    NO-UNDO.
@@ -318,10 +335,11 @@ CLASS Core.Security.Auth:
         RETURN epoch.
     END METHOD.
     
-    /* generate expire time for token expiration ================= */
+    /* GENERATE EXPIRE TIME FOR TOKEN 
+    ==================================================================================== */
     /* Epoch time + expire time in seconds */
     METHOD PUBLIC INT64 GenExpire ():
-        RETURN GetCurrentEpoch() + (30 * 24 * 60 * 60).
+        RETURN GetCurrentEpoch() + (30 * 24 * 60 * 60). /* 30 Days */
     END METHOD.
        
     

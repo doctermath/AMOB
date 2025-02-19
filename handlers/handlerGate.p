@@ -13,17 +13,18 @@ DEFINE INPUT  PARAMETER poRequest  AS IWebRequest NO-UNDO.
 DEFINE VARIABLE oResponse   AS OpenEdge.Web.WebResponse NO-UNDO.
 DEFINE VARIABLE mHandler    AS Core.Master.Handler      NO-UNDO.
 DEFINE VARIABLE oAuth       AS Core.Security.Auth       NO-UNDO.
+DEFINE VARIABLE oEnv        AS Core.Utilities.Env       NO-UNDO.
 DEFINE VARIABLE oJson       AS JsonObject               NO-UNDO.
 DEFINE VARIABLE cUri        AS CHARACTER                NO-UNDO.
 DEFINE VARIABLE cHandler    AS CHARACTER                NO-UNDO.
 DEFINE VARIABLE lNoResource AS LOGICAL                  NO-UNDO.
 
-    
 ASSIGN 
     oResponse            = NEW OpenEdge.Web.WebResponse()
     mHandler             = NEW Core.Master.Handler()
     oJson                = NEW JsonObject()
     oAuth                = NEW Core.Security.Auth(INPUT poRequest, INPUT ojson, oResponse)
+    oEnv                 = NEW Core.Utilities.Env()
     oResponse:StatusCode = 200.
     
 /* Handler Method Selection 
@@ -37,18 +38,17 @@ END CASE.
 
 /* URL Routing 
 ======================================================== */  
-cUri = RIGHT-TRIM(poRequest:UriTemplate, '/':u).
-MESSAGE "INFO - Request URI :" cUri .
+cUri = RIGHT-TRIM(poRequest:PathInfo, '/').
 
-/* Authentication (PAS128AUTH) */
-IF cUri = '/auth/~{param~}' THEN 
+/* Authentication */
+IF cUri BEGINS '/auth' THEN 
 DO:
-    CASE poRequest:GetPathParameter("param"):
-        WHEN 'login' THEN 
+    CASE SUBSTRING (cUri, 6):
+        WHEN '/login' THEN 
             oAuth:Login().
-        WHEN 'register' THEN 
+        WHEN '/register' THEN 
             oAuth:Register().
-        WHEN 'logout' THEN 
+        WHEN '/logout' THEN 
             IF oAuth:ValidateToken() THEN 
                 oAuth:Logout().
         OTHERWISE 
@@ -61,17 +61,17 @@ DO:
 END.
 
 /* Testing Procedure, only available in developtment enviroments */
-ELSE IF cUri = '/test/~{param~}' THEN 
-DO:
-    RUN VALUE('test/' + poRequest:GetPathParameter("param") + '.p') (INPUT poRequest, INPUT oJson).
-END.
+ELSE IF cUri BEGINS '/test' THEN 
+    IF oEnv:GetValue('APP_ENV') = 'development' THEN 
+        RUN VALUE (SUBSTRING(cUri, 2) + '.p') (INPUT poRequest, INPUT oJson).
+    ELSE STOP.
 
 /* Guest Procedure, available for guest that able to request resource without authentication */
-ELSE IF cUri = '/guest/~{param~}' THEN 
+ELSE IF cUri BEGINS '/guest' THEN 
 DO:
     RUN VALUE(cHandler) (
         INPUT  "GUEST",
-        INPUT  poRequest:GetPathParameter("param"), 
+        INPUT  SUBSTRING (cUri, 7), 
         INPUT  poRequest, 
         INPUT  oJson, 
         OUTPUT lNoResource).
@@ -89,25 +89,19 @@ DO:
     /* Check Validation */
     IF oAuth:ValidateToken() THEN 
     DO:
-        CASE cUri:
-            /* PAS128INT */
-            WHEN '/get-employee-data' THEN
-            RUN resource/getEmployeeData.p (INPUT poRequest, INPUT oJson).
-
-            WHEN '/gdmdcall' THEN 
-            RUN pasbg/precalc/program/getDemandCall.p(poRequest, oJson).
-    
-            WHEN '/getengpop' THEN 
-            RUN resource/engines/getengpop.p (poRequest, oJson). 
-    
-            OTHERWISE 
-            DO:
-                oResponse:StatusCode = 404.
-                oJson:Add('success', FALSE).
-                oJson:Add('message', 'Resource Not Found').
-            END.
-
-        END CASE.
+        RUN VALUE(cHandler) (
+            INPUT  "VALIDATE",
+            INPUT  cUri, 
+            INPUT  poRequest, 
+            INPUT  oJson, 
+            OUTPUT lNoResource).
+        
+        IF lNoResource THEN 
+        DO:
+            oResponse:StatusCode = 404.
+            oJson:Add('success', FALSE).
+            oJson:Add('message', 'Resource Not Found').
+        END.
     END.
 
     /* If Unvalidated */
@@ -116,7 +110,7 @@ DO:
         oResponse:StatusCode = 401. 
         oJson:Add('success', FALSE).
         oJson:Add('message', 'Invalid Credential').   
-    END.    
+    END.   
 END.
 
 /* Response Content 

@@ -10,10 +10,14 @@ CLASS Core.Utilities.Env:
     /* Constructor */
     CONSTRUCTOR PUBLIC Env():
         ASSIGN cEnvPath = ENTRY(1, PROPATH) + '/.env'.
+        IF SEARCH(cEnvPath) = ? THEN DO:
+            MESSAGE "FATAL - DOT ENV FILE NOT EXISTS ON" cEnvPath ", RAISING ERROR 403".
+            STOP.
+        END.
     END CONSTRUCTOR.
     
-    /* Get Env Value by Variable Name */
-    METHOD PUBLIC VOID PrintEnvLoc():
+    /* Print Env Path */
+    METHOD PUBLIC VOID PrintEnvPath():
         MESSAGE '123 Env Path : ' cEnvPath.        
     END METHOD.
         
@@ -23,7 +27,7 @@ CLASS Core.Utilities.Env:
         REPEAT:
             IMPORT UNFORMATTED cLine.
             
-            IF TRIM(cLine) = '' THEN NEXT.
+            IF cLine BEGINS ' ' OR cLine BEGINS '#' OR cLine = '' THEN NEXT.
             
             IF ENTRY(1, cLine, "=") = cVariable THEN
                 RETURN TRIM(ENTRY(2, cLine, "="), CHR(34)).
@@ -35,12 +39,12 @@ CLASS Core.Utilities.Env:
     END METHOD.
         
     /* Get List of Env Variable Names */
-    METHOD PUBLIC CHARACTER ListVariable():
+    METHOD PUBLIC CHARACTER getVariables():
         INPUT FROM VALUE(cEnvPath).
         
         REPEAT:
             IMPORT UNFORMATTED cLine.
-            IF TRIM(cLine) = '' THEN NEXT.
+            IF cLine BEGINS ' ' OR cLine BEGINS '#' OR cLine = '' THEN NEXT.
             
             ASSIGN cListVariable = cListVariable + ENTRY(1, cLine, "=") + CHR(1). 
         END.
@@ -49,6 +53,7 @@ CLASS Core.Utilities.Env:
             RETURN RIGHT-TRIM(cListVariable, CHR(1)).
         ELSE 
             RETURN ?.
+        INPUT CLOSE.
             
     END METHOD.
     
