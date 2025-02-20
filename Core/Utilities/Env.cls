@@ -11,7 +11,7 @@ CLASS Core.Utilities.Env:
     CONSTRUCTOR PUBLIC Env():
         ASSIGN cEnvPath = ENTRY(1, PROPATH) + '/.env'.
         IF SEARCH(cEnvPath) = ? THEN DO:
-            MESSAGE "FATAL - DOT ENV FILE NOT EXISTS ON" cEnvPath ", RAISING ERROR 403".
+            MESSAGE "FATAL - DOT ENV FILE NOT EXISTS ON" cEnvPath ", RAISING ERROR 408".
             STOP.
         END.
     END CONSTRUCTOR.

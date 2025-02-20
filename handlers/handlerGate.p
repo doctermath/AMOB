@@ -41,7 +41,7 @@ END CASE.
 cUri = RIGHT-TRIM(poRequest:PathInfo, '/').
 
 /* Authentication */
-IF cUri BEGINS '/auth' THEN 
+IF cUri BEGINS '/auth/' THEN 
 DO:
     CASE SUBSTRING (cUri, 6):
         WHEN '/login' THEN 
@@ -61,13 +61,13 @@ DO:
 END.
 
 /* Testing Procedure, only available in developtment enviroments */
-ELSE IF cUri BEGINS '/test' THEN 
+ELSE IF cUri BEGINS '/test/' THEN 
     IF oEnv:GetValue('APP_ENV') = 'development' THEN 
         RUN VALUE (SUBSTRING(cUri, 2) + '.p') (INPUT poRequest, INPUT oJson).
     ELSE STOP.
 
 /* Guest Procedure, available for guest that able to request resource without authentication */
-ELSE IF cUri BEGINS '/guest' THEN 
+ELSE IF cUri BEGINS '/guest/' THEN 
 DO:
     RUN VALUE(cHandler) (
         INPUT  "GUEST",
@@ -84,11 +84,9 @@ DO:
 END.
 
 /* Resources */
-ELSE 
-DO:
+ELSE DO:
     /* Check Validation */
-    IF oAuth:ValidateToken() THEN 
-    DO:
+    IF oAuth:ValidateToken() THEN DO:
         RUN VALUE(cHandler) (
             INPUT  "VALIDATE",
             INPUT  cUri, 
@@ -96,8 +94,7 @@ DO:
             INPUT  oJson, 
             OUTPUT lNoResource).
         
-        IF lNoResource THEN 
-        DO:
+        IF lNoResource THEN DO:
             oResponse:StatusCode = 404.
             oJson:Add('success', FALSE).
             oJson:Add('message', 'Resource Not Found').
@@ -105,8 +102,7 @@ DO:
     END.
 
     /* If Unvalidated */
-    ELSE 
-    DO:
+    ELSE DO:
         oResponse:StatusCode = 401. 
         oJson:Add('success', FALSE).
         oJson:Add('message', 'Invalid Credential').   
