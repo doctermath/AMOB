@@ -24,6 +24,7 @@ CLASS Core.Security.Auth:
     DEFINE PRIVATE VARIABLE cBearerCredential AS CHARACTER                NO-UNDO.
     DEFINE PRIVATE VARIABLE cBearerUsername   AS CHARACTER                NO-UNDO.
     DEFINE PRIVATE VARIABLE cBearerToken      AS CHARACTER                NO-UNDO.
+    DEFINE PRIVATE VARIABLE cAgent            AS CHARACTER                NO-UNDO.
     
     /* Other Variables */
     DEFINE PRIVATE VARIABLE iBearerExpire     AS INTEGER                  NO-UNDO.
@@ -52,6 +53,28 @@ CLASS Core.Security.Auth:
     /* BASIC AUTH LOGIN 
     ==================================================================================== */
     METHOD PUBLIC VOID Login():
+        ASSIGN cAgent = poRequest:GetHeader('User-Agent'):VALUE.
+        
+        MESSAGE 
+            "ContextNames: " poRequest:ContextNames SKIP
+            "DefaultCookieDomain: " poRequest:DefaultCookieDomain SKIP
+            "DefaultCookiePath: " poRequest:DefaultCookiePath SKIP
+            "LocalAddress: " poRequest:LocalAddress SKIP
+            "LocalHost: " poRequest:LocalHost SKIP
+            "LocalPort: " STRING(poRequest:LocalPort) SKIP
+            "PathInfo: " poRequest:PathInfo SKIP
+            "PathParameterNames: " poRequest:PathParameterNames SKIP
+            "RemoteAddress: " poRequest:RemoteAddress SKIP
+            "RemoteHost: " poRequest:RemoteHost SKIP
+            "RemotePort: " STRING(poRequest:RemotePort) SKIP
+            "RemoteUser: " poRequest:RemoteUser SKIP
+            "ResolvedTransportPath: " poRequest:ResolvedTransportPath SKIP
+            "ServerSoftware: " poRequest:ServerSoftware SKIP
+            "TransportPath: " poRequest:TransportPath SKIP
+            "UriTemplate: " poRequest:UriTemplate SKIP
+            "WebAppPath: " poRequest:WebAppPath 
+            VIEW-AS ALERT-BOX.
+        
         /* Just for logging on server */
         MESSAGE "BEGIN LOGIN".
         
@@ -60,27 +83,39 @@ CLASS Core.Security.Auth:
         /* Find user credential to database */
         /* Use exclusive lock because yuserd need to be updated */
         MESSAGE "CHECKING USER" cBasicUsername "IN USER DATABASE".
-        FIND FIRST yusers WHERE yusers.username = cBasicUsername EXCLUSIVE-LOCK NO-ERROR.
-        IF AVAILABLE yusers THEN 
+        FIND FIRST xtools.xuser WHERE xtools.xuser.chUserid = cBasicUsername NO-LOCK NO-ERROR.
+        IF AVAILABLE xtools.xuser THEN 
         DO:
             MESSAGE "USERNAME FOUND".
-            IF yusers.password = cBasicPassword THEN 
+            IF xtools.xuser.chPasswordFix = cBasicPassword THEN 
             DO:
                 MESSAGE "PASSWORD CORRECT".
+                
                 /* generate token and expiry */
+                FIND FIRST usrtoken WHERE 
+                    usrtoken.usersid  = cBasicUsername AND
+                    usrtoken.type     = cAgent
+                    EXCLUSIVE-LOCK NO-ERROR.
+                    
+                IF NOT AVAILABLE usrtoken THEN DO:
+                    CREATE usrtoken.
+                END.
+                
                 ASSIGN
-                    yusers.token        = genToken()
-                    yusers.expiry_epoch = genExpire()
+                    usrtoken.usersid = cBasicUsername
+                    usrtoken.type    = cAgent
+                    usrtoken.token   = genToken()
+                    usrtoken.expiry  = genExpire()
+                    usrtoken.uiddat  = NOW
+                    usrtoken.ip      = poRequest:RemoteHost
                     .
                 
                 /* send response */
                 oJson:Add('success', TRUE).
                 oJson:Add('message', 'Login Successful').  
-                oJson:Add('username', yusers.username).
-                oJson:Add('role', yusers.role).
-                oJson:Add('cusno', yusers.cusno).
-                oJson:Add('token', yusers.token).
-                oJson:Add('expire', yusers.expiry_epoch).  
+                oJson:Add('username', xtools.xuser.chUserid).
+                oJson:Add('token', usrtoken.token).
+                oJson:Add('expire', usrtoken.expiry).  
             END.
                 
             ELSE 
@@ -103,7 +138,8 @@ CLASS Core.Security.Auth:
             oJson:Add('message', 'Account not exits').
         END.
         
-        RELEASE yusers NO-ERROR.
+        RELEASE xtools.xuser NO-ERROR.
+        RELEASE usrtoken NO-ERROR.
         MESSAGE "END LOGIN".
     END METHOD. 
     
@@ -119,12 +155,9 @@ CLASS Core.Security.Auth:
         
         setBasicCredential().
         
-        cRole = poRequest:URI:GetQueryValue('role').
-        cCusno = poRequest:URI:GetQueryValue('cusno').
-        
         /* Check if account already exists on database */
-        FIND FIRST yusers WHERE yusers.username = cBasicUsername NO-LOCK NO-ERROR.
-        IF AVAILABLE yusers THEN 
+        FIND FIRST xtools.xuser WHERE xtools.xuser.chUserid = cBasicUsername NO-LOCK NO-ERROR.
+        IF AVAILABLE xtools.xuser THEN 
         DO:
             MESSAGE "USERNAME EXIST".
             oResponse:StatusCode = 401.
@@ -135,28 +168,16 @@ CLASS Core.Security.Auth:
         /* create new account credential on database */
         ELSE 
         DO:
-            MESSAGE "USERNAME NOT EXIST, CREATING ACCOUNT" cBasicUsername.
-            FIND LAST yusers NO-LOCK NO-ERROR.
-            IF AVAILABLE yusers THEN ASSIGN 
-                    iLastUserId = yusers.id.
-            ELSE 
-                iLastUserId = 0.
-                        
-            CREATE yusers.
+            MESSAGE "USERNAME NOT EXIST, CREATING ACCOUNT" cBasicUsername.         
+            CREATE xtools.xuser.
             ASSIGN
-                yusers.id       = iLastUserId + 1
-                yusers.username = cBasicUsername
-                yusers.password = cBasicPassword
-                yusers.role     = cRole.
-            IF (cRole = "customer") THEN
-                ASSIGN yusers.cusno = cCusno.
-            ELSE
-                ASSIGN yusers.cusno = "Not Available".
+                xtools.xuser.chUserid = cBasicUsername
+                xtools.xuser.chPasswordFix = cBasicPassword.
                 
             oJson:Add('success', TRUE).
-            oJson:Add('message', 'Username ' + cBasicUsername + ' successfully created with ID: ' + STRING(yusers.id)).
+            oJson:Add('message', 'Username ' + cBasicUsername + ' successfully created with ID: ' + STRING(xtools.xuser.chUserid)).
         END.
-        RELEASE yusers NO-ERROR.
+        RELEASE xtools.xuser NO-ERROR.
         MESSAGE "END REGISTER".
     END METHOD.
     
@@ -166,18 +187,17 @@ CLASS Core.Security.Auth:
     METHOD PUBLIC VOID Logout():
         MESSAGE "BEGIN LOGOUT".
         setBearerCredential().
+        
+        ASSIGN cAgent = poRequest:GetHeader('User-Agent'):VALUE.
             
-        FIND FIRST yusers WHERE 
-            yusers.username = cBearerUsername AND 
-            yusers.token = cBearerToken AND 
-            yusers.expiry_epoch > GetCurrentEpoch()
+        FIND FIRST usrtoken WHERE 
+            usrtoken.usersid = cBearerUsername AND 
+            usrtoken.type = cAgent
             EXCLUSIVE-LOCK NO-ERROR.
-        IF AVAILABLE yusers THEN 
+        IF AVAILABLE usrtoken THEN 
         DO:
-            MESSAGE "LOGGING OUT FOR USER" yusers.username.
-            ASSIGN
-                yusers.token        = ""
-                yusers.expiry_epoch = 0.
+            MESSAGE "LOGGING OUT FOR USER" usrtoken.usersid.
+            DELETE usrtoken.
                     
             oResponse:StatusCode = 200.
             oJson:Add('success', TRUE).
@@ -201,11 +221,11 @@ CLASS Core.Security.Auth:
         MESSAGE "BEGIN VALIDATE TOKEN".
         setBearerCredential().
             
-        FIND FIRST yusers WHERE yusers.username = cBearerUsername NO-LOCK NO-ERROR.
-        IF AVAILABLE yusers THEN 
+        FIND FIRST usrtoken WHERE usrtoken.usersid = cBearerUsername NO-LOCK NO-ERROR.
+        IF AVAILABLE usrtoken THEN 
         DO:
-            MESSAGE "VALIDATING TOKEN FOR USER" yusers.username.
-            IF yusers.token = cBearerToken AND yusers.expiry_epoch > GetCurrentEpoch() THEN DO:
+            MESSAGE "VALIDATING TOKEN FOR USER" usrtoken.usersid.
+            IF usrtoken.token = cBearerToken AND usrtoken.expiry > NOW THEN DO:
                 MESSAGE "VALIDATE SUCCESSFULL".
                 RETURN TRUE.
             END.
@@ -218,7 +238,8 @@ CLASS Core.Security.Auth:
         DO:
             MESSAGE "NO USERNAME FOUND FOR " cBearerUsername VIEW-AS ALERT-BOX.
             RETURN FALSE.
-        END.     
+        END. 
+        RELEASE usrtoken.    
         MESSAGE "END VALIDATE TOKEN".
     END METHOD. 
     
@@ -246,20 +267,11 @@ CLASS Core.Security.Auth:
         MESSAGE "END VALIDATE API KEY". */
     END METHOD.
     
-    
-    /* GET HEADER VALUE 
-    ==================================================================================== */
-    METHOD PRIVATE CHARACTER GetHeaderValue(INPUT cHeader AS CHARACTER):
-        RETURN 
-            ENTRY(2, STRING(poRequest:GetHeader(cHeader)), " ").
-    END METHOD. 
-    
-    
     /* SET BASIC CREDENTIAL 
     ==================================================================================== */
     METHOD PRIVATE VOID SetBasicCredential():
         ASSIGN
-            cBasicCredential = GetHeaderValue('Progress-Basic-Auth')
+            cBasicCredential = poRequest:GetHeader('Progress-Basic-Auth'):VALUE
             cBasicCredential = oBase64Url:Decode(cBasicCredential)      
             cBasicUsername   = ENTRY(1, cBasicCredential, ":")
             cBasicPassword   = ENTRY(2, cBasicCredential, ":")
@@ -273,7 +285,7 @@ CLASS Core.Security.Auth:
     /* retrieve Credential from Bearer Auth Header =================*/
     METHOD PUBLIC VOID SetBearerCredential():
         ASSIGN 
-            cBearerCredential = GetHeaderValue('Progress-Bearer-Auth')
+            cBearerCredential = poRequest:GetHeader('Progress-Bearer-Auth'):VALUE
             cBearerCredential = oBase64Url:Decode(cBearerCredential)
             cBearerUsername   = ENTRY(1, cBearerCredential, ":")
             cBearerToken      = ENTRY(2, cBearerCredential, ":")
@@ -323,23 +335,16 @@ CLASS Core.Security.Auth:
         RETURN HEX-ENCODE(GENERATE-RANDOM-KEY).    
     END METHOD. 
     
-    /* GENERATE CURRENT LINUX EPOCH TIME 
-    ==================================================================================== */
-    METHOD PUBLIC INT64 GetCurrentEpoch():
-        DEFINE VARIABLE datetime AS DATETIME NO-UNDO.
-        DEFINE VARIABLE epoch    AS INT64    NO-UNDO.
-        
-        datetime = DATETIME(1,1,1970,0,0,0,0).
-        epoch = INTERVAL ( NOW, datetime , "seconds" ).
-    
-        RETURN epoch.
-    END METHOD.
     
     /* GENERATE EXPIRE TIME FOR TOKEN 
     ==================================================================================== */
-    /* Epoch time + expire time in seconds */
-    METHOD PUBLIC INT64 GenExpire ():
-        RETURN GetCurrentEpoch() + (30 * 24 * 60 * 60). /* 30 Days */
+    /* datetime + expire time in seconds */
+    METHOD PUBLIC DATETIME GenExpire ():
+        DEFINE VARIABLE currentDateTime AS DATETIME NO-UNDO.
+        ASSIGN currentDateTime = NOW.
+        
+        
+        RETURN DATETIME(ADD-INTERVAL(currentDateTime, 30, 'days')). /* 30 Days */
     END METHOD.
        
     

@@ -51,6 +51,9 @@ DO:
         WHEN '/logout' THEN 
             IF oAuth:ValidateToken() THEN 
                 oAuth:Logout().
+            ELSE
+                mHandler:invalidCredential(INPUT oJson, INPUT oResponse).        
+                
         OTHERWISE 
         DO:
             oResponse:StatusCode = 400.
@@ -102,11 +105,8 @@ ELSE DO:
     END.
 
     /* If Unvalidated */
-    ELSE DO:
-        oResponse:StatusCode = 401. 
-        oJson:Add('success', FALSE).
-        oJson:Add('message', 'Invalid Credential').   
-    END.   
+    ELSE 
+        mHandler:invalidCredential(INPUT oJson, INPUT oResponse).
 END.
 
 /* Response Content 
