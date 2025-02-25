@@ -14,7 +14,7 @@ FOR EACH xtools.xuser WHERE chuserid BEGINS  poRequest:URI:GetQueryValue('chuser
     BUFFER-COPY xtools.xuser TO ttxuser.    
 END.
 
-MESSAGE 123
+MESSAGE 123 ENCODE('trialit')
 VIEW-AS ALERT-BOX.
 
 oJson:READ(TEMP-TABLE ttxuser:HANDLE).

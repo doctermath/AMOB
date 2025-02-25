@@ -55,26 +55,6 @@ CLASS Core.Security.Auth:
     METHOD PUBLIC VOID Login():
         ASSIGN cAgent = poRequest:GetHeader('User-Agent'):VALUE.
         
-        MESSAGE 
-            "ContextNames: " poRequest:ContextNames SKIP
-            "DefaultCookieDomain: " poRequest:DefaultCookieDomain SKIP
-            "DefaultCookiePath: " poRequest:DefaultCookiePath SKIP
-            "LocalAddress: " poRequest:LocalAddress SKIP
-            "LocalHost: " poRequest:LocalHost SKIP
-            "LocalPort: " STRING(poRequest:LocalPort) SKIP
-            "PathInfo: " poRequest:PathInfo SKIP
-            "PathParameterNames: " poRequest:PathParameterNames SKIP
-            "RemoteAddress: " poRequest:RemoteAddress SKIP
-            "RemoteHost: " poRequest:RemoteHost SKIP
-            "RemotePort: " STRING(poRequest:RemotePort) SKIP
-            "RemoteUser: " poRequest:RemoteUser SKIP
-            "ResolvedTransportPath: " poRequest:ResolvedTransportPath SKIP
-            "ServerSoftware: " poRequest:ServerSoftware SKIP
-            "TransportPath: " poRequest:TransportPath SKIP
-            "UriTemplate: " poRequest:UriTemplate SKIP
-            "WebAppPath: " poRequest:WebAppPath 
-            VIEW-AS ALERT-BOX.
-        
         /* Just for logging on server */
         MESSAGE "BEGIN LOGIN".
         
@@ -179,6 +159,45 @@ CLASS Core.Security.Auth:
         END.
         RELEASE xtools.xuser NO-ERROR.
         MESSAGE "END REGISTER".
+    END METHOD.
+    
+    /* PASSWORD MIGRATION 
+    ==================================================================================== */
+    /* Generate new password using old password so new auth login can be used */
+    METHOD PUBLIC VOID Migrate():
+        DEFINE VARIABLE oldPassword AS CHARACTER NO-UNDO.
+        
+        MESSAGE "INFO - BEGIN MIGRATE FUNCTION".
+        setBasicCredential().
+        
+        ASSIGN 
+            oldPassword = ENCODE(STRING(ENTRY(2, oBase64Url:Decode(poRequest:GetHeader('Progress-Basic-Auth'):VALUE), ':'))).
+        
+        /* Check if username exists in table */
+        FIND FIRST xtools.xUser WHERE chUserid = cBasicUsername EXCLUSIVE-LOCK NO-ERROR.
+        IF AVAILABLE xtools.xUser THEN DO:
+            MESSAGE 'User' cBasicUsername 'available'.
+            IF xtools.xUser.chGrand = oldPassword THEN DO:
+                ASSIGN
+                    xtools.xUser.chPasswordFix = cBasicPassword.
+                oJson:Add('success', TRUE).
+                oJson:Add('message', 'New Password has been created for user ' + cBasicUsername).
+                MESSAGE 'Password Migration successful for user' cBasicUsername. 
+            END.
+            ELSE DO:
+                MESSAGE 'Password incorrect!'.
+                oResponse:StatusCode = 401.
+                oJson:Add('success', FALSE).
+                oJson:Add('message', 'Password incorrect').
+            END.
+        END.
+        ELSE DO:
+            MESSAGE 'User' cBasicUsername 'not found'.
+            oResponse:StatusCode = 404.
+            oJson:Add('success', FALSE).
+            oJson:Add('message', 'Username not exist').  
+        END.
+        RELEASE xtools.xUser.     
     END METHOD.
     
     /* BEARER AUTH LOGOUT

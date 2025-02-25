@@ -46,13 +46,18 @@ DO:
     CASE SUBSTRING (cUri, 6):
         WHEN '/login' THEN 
             oAuth:Login().
+            
         WHEN '/register' THEN 
             oAuth:Register().
+            
         WHEN '/logout' THEN 
             IF oAuth:ValidateToken() THEN 
                 oAuth:Logout().
             ELSE
-                mHandler:invalidCredential(INPUT oJson, INPUT oResponse).        
+                mHandler:invalidCredential(INPUT oJson, INPUT oResponse).  
+                 
+        WHEN '/migrate' THEN 
+            oAuth:Migrate().     
                 
         OTHERWISE 
         DO:
