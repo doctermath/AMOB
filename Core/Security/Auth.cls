@@ -53,12 +53,21 @@ CLASS Core.Security.Auth:
     /* BASIC AUTH LOGIN 
     ==================================================================================== */
     METHOD PUBLIC VOID Login():
-        ASSIGN cAgent = poRequest:GetHeader('User-Agent'):VALUE.
         
         /* Just for logging on server */
         MESSAGE "BEGIN LOGIN".
         
         setBasicCredential().
+        
+        /* Check user agent */
+        ASSIGN cAgent = poRequest:GetHeader('User-Agent'):VALUE NO-ERROR.
+        IF cAgent = '' OR cAgent = ? THEN DO:
+            MESSAGE "FATAL - No User Agent Found".
+            oResponse:StatusCode = 404.
+            oJson:Add('success', FALSE).
+            oJson:Add('message', 'User-Agent Header not found').
+            RETURN. 
+        END.
         
         /* Find user credential to database */
         /* Use exclusive lock because yuserd need to be updated */
