@@ -6,13 +6,10 @@ DEFINE INPUT PARAMETER oJson        AS JsonObject NO-UNDO.
 
 oJson:Add('biji', 'jambu').
 
-/*FIND FIRST empmas WHERE empno = poRequest:URI:GetQueryValue('empno') NO-ERROR.
-
-DEFINE TEMP-TABLE ttempmas LIKE empmas
-    FIELD aaa AS CHAR.
-
-
-CREATE ttempmas.
-BUFFER-COPY empmas TO ttempmas.
-
-oJson:READ(TEMP-TABLE ttEmpmas:HANDLE).*/
+/*DEFINE TEMP-TABLE ttempmas LIKE empmas.                             */
+/*FOR EACH  empmas WHERE empno = poRequest:URI:GetQueryValue('empno'):*/
+/*    CREATE ttempmas.                                                */
+/*    BUFFER-COPY empmas TO ttempmas.                                 */
+/*END.                                                                */
+/*                                                                    */
+/*oJson:READ(TEMP-TABLE ttEmpmas:HANDLE).                             */
