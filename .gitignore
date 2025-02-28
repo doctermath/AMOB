@@ -12,6 +12,7 @@ build/
 .env
 *.pf
 init.p
+.openedge.json
 
 # Ignore temporary files
 *.tmp
