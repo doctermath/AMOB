@@ -74,11 +74,11 @@ ELSE IF cUri BEGINS '/test/' THEN
         RUN VALUE (SUBSTRING(cUri, 2) + '.p') (INPUT poRequest, INPUT oJson).
     ELSE STOP.
 
-/* Guest Procedure, available for guest that able to request resource without authentication */
-ELSE IF cUri BEGINS '/guest/' THEN 
+/* Public Procedure, available for public that able to request resource without authentication */
+ELSE IF cUri BEGINS '/public/' THEN 
 DO:
     RUN VALUE(cHandler) (
-        INPUT  "GUEST",
+        INPUT  "PUBLIC",
         INPUT  SUBSTRING (cUri, 7), 
         INPUT  poRequest, 
         INPUT  oJson, 
@@ -87,7 +87,7 @@ DO:
     IF lNoResource THEN DO:
         oResponse:StatusCode = 404.
         oJson:Add('success', FALSE).
-        oJson:Add('message', 'Guest Resource Not Found').
+        oJson:Add('message', 'Public Resource Not Found').
     END.
 END.
 

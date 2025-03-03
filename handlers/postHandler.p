@@ -11,7 +11,7 @@ DEFINE INPUT  PARAMETER poRequest   AS IWebRequest NO-UNDO.
 DEFINE INPUT  PARAMETER oJson       AS JsonObject  NO-UNDO.
 DEFINE OUTPUT PARAMETER lNoResource AS LOGICAL   NO-UNDO.
 
-IF cUser = 'GUEST' THEN 
+IF cUser = 'PUBLIC' THEN 
 DO:
     CASE cUri:
         WHEN '/x' THEN 
