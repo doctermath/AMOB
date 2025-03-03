@@ -79,7 +79,7 @@ ELSE IF cUri BEGINS '/public/' THEN
 DO:
     RUN VALUE(cHandler) (
         INPUT  "PUBLIC",
-        INPUT  SUBSTRING (cUri, 7), 
+        INPUT  SUBSTRING (cUri, 8), 
         INPUT  poRequest, 
         INPUT  oJson, 
         OUTPUT lNoResource).
