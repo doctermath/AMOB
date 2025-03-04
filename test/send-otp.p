@@ -12,8 +12,8 @@ ASSIGN script = "python " + ENTRY(1, PROPATH) + "/python/mail/send-otp.py " +
     poRequest:URI:GetQueryValue('recipient').
 
 INPUT THROUGH VALUE(script) NO-ECHO.
-
 IMPORT UNFORMATTED result.
+INPUT CLOSE.
 
 oJson:Add('succeed', TRUE).
 oJson:Add('script', script).
